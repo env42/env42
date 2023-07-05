@@ -1,6 +1,6 @@
 {
   "name": "@env42/core",
-  "version": "0.0.1",
+  "version": "0.0.3",
   "description": "",
   "exports": {
     ".": "./dist/index.js",

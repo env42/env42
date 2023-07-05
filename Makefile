@@ -8,6 +8,7 @@ build:
 	pnpm run build
 
 pack:
+	rm -rf .build
 	pnpm pack --pack-destination .build
 
 publish:

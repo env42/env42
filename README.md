@@ -50,7 +50,7 @@ First, you declare your Configuration as a Zod Schema. Take your chance and infe
 export const ExpressConfigSchema = z.object({
   hostName: z.coerce.string(),
   port: z.coerce.number(),
-  config: z.object({
+  options: z.object({
     autoStart: z.coerce
       .boolean()
       .nullish()
@@ -87,7 +87,7 @@ Once that is out of the way, declare a Zod Enum for all the environment variable
     hostName: MockedEnvVarsEnum.EXPRESS_HOST,
     port: MockedEnvVarsEnum.EXPRESS_PORT,
     // Red squigly lines here if any of the keys are missing or have a typo.
-    'config.autoStart': MockedEnvVarsEnum.EXPRESS_AUTO_START,
+    'options.autoStart': MockedEnvVarsEnum.EXPRESS_AUTO_START,
   };
   ```
 
@@ -127,7 +127,7 @@ const config = getExpressConfig();
 // Now we can use it as any other object
 const app = express();
 
-if (config.autoStart) {
+if (config.options.autoStart) {
   app.listen(config.port, config.hostName);
 }
 ```
@@ -238,7 +238,7 @@ const config = getAppConfig();
 // Now we can use it as any other object
 const app = express();
 
-if (config.express.autoStart) {
+if (config.express.options.autoStart) {
   app.listen(
     config.express.port, 
     config.express.hostName
@@ -329,6 +329,7 @@ ConfigTemplateGenerator.generateConfigFile<
   example: {
     API_HOST_NAME: 'localhost',
     API_PORT: '4000',
+    API_AUTO_START: 'true',
     CORS_ORIGIN: 'http://localhost:3000',
     CORS_HEADERS: '*',
   },
@@ -344,9 +345,87 @@ API_HOST_NAME="localhost"
 # config.express.port
 API_PORT=4000
 
+# config.express.options.autoStart
+API_AUTO_START=true
+
 # config.cors.origin
 CORS_ORIGIN="http://localhost:3000"
 
 # config.cors.headers
 CORS_HEADERS="*"
+```
+
+## 🌐🚀 Navigating the Front-End Galaxy: Unleashing `env42` in the Browser Universe
+
+`env42` is not only useful for Node.js projects. You can also use it in the browser, with just a small caveat: In the browser, you can't use environment variables because a server environment is not present at runtime in front-end Projects. However, you can use the same configuration schema to generate a configuration object that you can use in your production front-end code. 
+
+Most Meta-Frameworks like Next.js DO load environment variables while running in development mode and statically replace them in the output during build time. However, that's not always the case. In Next.js `export` mode, for example, the framework will only replace environment variables that have been statically called in the code, like in `process.env.NEXT_PUBLIC_SOME_VAR`. If you have a dynamic environment variable, you'll need to use a different approach. The sad part is that at `env42` all we do is dynamic access. 
+
+To circumvent this problem, we can have a script that extracts the configuration at build time and saves it to a file that we can import at runtime. That way, all the configuration we need will be persisted into an external module that can be imported at runtime. There's no much point in providing it from `env42` because of how easy it is to implement yourself and how you might want to customize it to your needs. Take a look at the following example:
+
+```typescript
+// scripts/lockConfig.ts
+
+import fs from 'fs';
+import { getAppConfig } from '@/config';
+
+/**
+ * Generates a .env.json file from the current environment variables.
+ *
+ * https://nextjs.org/docs/pages/building-your-application/configuring/environment-variables#bundling-environment-variables-for-the-browser
+ */
+const config = getAppConfig();
+
+const formatttedContent = JSON.stringify(config, null, 2);
+
+fs.writeFileSync(
+  `${__dirname}/../.env.json`,
+  `${formatttedContent}\n`,
+);
+```
+
+Now, you can run this script before building your project. For better usability, we recommend creating an exclusive script to be ran in CI before building your project. That way, you can ensure that the configuration is always up to date. For example, in Next.js, you can add the following script to your `package.json`:
+
+```json
+{
+  "scripts": {
+    "config:lock": "rm -f .env.json && tsx scripts/lockConfig",
+    "build": "...",
+    "build:ci": "pnpm config:lock && pnpm build",
+  }
+}
+```
+
+Now we're generating the static config file. Only thing remaining is to make some changes in our `getAppConfig` to take the presence of that file into account:
+
+```typescript
+let appConfig: AppConfig | null = null;
+
+export const getAppConfig = (
+  env: EnvKeys<AppConfigEnvVarNames> = process.env as any,
+): AppConfig => {
+  if (!appConfig) {
+    appConfig = loadAppConfig(env) as any;
+  }
+
+  return appConfig as any;
+};
+
+const loadAppConfig = (env: EnvKeys<AppConfigEnvVarNames>) => {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const result = require('@/../.env.json') as any;
+
+    return result;
+  } catch (err) {}
+
+  return loadAppConfigFromEnvironment(env);
+};
+
+export const loadAppConfigFromEnvironment = (
+  env: EnvKeys<AppConfigEnvVarNames> = process.env as any,
+): AppConfig => ({
+  express: loadExpressConfig(env),
+  cors: loadCorsConfig(env),
+});
 ```

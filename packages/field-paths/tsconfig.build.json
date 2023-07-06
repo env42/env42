@@ -12,7 +12,12 @@
     "types": ["vitest/globals"]
   },
   "include": [
-    "./**/*.test.ts",
+    "src/**/*.ts",
   ],
-  "exclude": ["dist"]
+  "exclude": [
+    "src/**/*.test.ts",
+    "src/**/__mocks__.ts",
+    "vitest.config.ts",
+    "dist"
+  ]
 }

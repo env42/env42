@@ -12,7 +12,9 @@
     "types": ["vitest/globals"]
   },
   "include": [
-    "./**/*.test.ts",
+    "src/**/*.ts",
+    "vitest.config.ts",
+    ".eslintrc.js"
   ],
   "exclude": ["dist"]
 }
